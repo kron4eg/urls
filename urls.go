@@ -18,6 +18,11 @@ type URL interface {
 // Call URL() to get the final string, or Bind() to fill the placeholders.
 type Route string
 
+// String returns the route as a plain string, without any query parameters.
+func (r Route) String() string {
+	return string(r)
+}
+
 func (r Route) appendQuery(queries ...url.Values) string {
 	if len(queries) == 0 {
 		return string(r)
