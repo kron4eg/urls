@@ -1,22 +1,52 @@
 # urls
 
-A package for constructing URL routes with placeholder substitution and query string building.
+A package for type safe URL routes.
+
+## API docs
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/kron4eg/urls.svg)](https://pkg.go.dev/github.com/kron4eg/urls)
 
 ## Usage
 
 ```go
+-- routes.go --
 import "github.com/kron4eg/urls"
+
+var (
+	Index      = urls.Route("/")
+	Posts      = urls.Route("/posts")
+	PostDetail = urls.TypedRoute[PostDetailParams]{
+		Pattern: urls.Route("/posts/{id}"),
+		Build: func(r urls.Route, p PostDetailParams) urls.Route {
+			return r.Bind(urls.PathParams{"id": strconv.Itoa(p.ID)})
+		},
+	}
+)
+
+// PostDetailParams are the typed parameters for the PostDetail route.
+type PostDetailParams struct {
+	ID int
+}
+
+-- server.go --
+func newMux() *http.ServerMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc(Index.String(), http.HandlerFunc(Index))
+	mux.HandleFunc(Posts.String(), http.HandlerFunc(Posts))
+	mux.HandleFunc(PostDetail.Pattern.String(), http.HandlerFunc(h.PostDetail))
+}
+
+-- handlers.go --
+func RedirectToIndex(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, Index.URL(), http.StatusFound)
+}
+
+func Posts(w http.ResponseWriter, r *http.Request) {
+	// look Ma, no string literals in revers URLs
+	typesafePost42URL := PostDetail.With(PostDetailParams{ID: 42}).URL()
+	http.Redirect(w, r, typesafePost42URL, http.StatusFound)
+}
 ```
-
-### Route.Bind — placeholder substitution
-
-```go
-route := urls.Route("/orgs/{org}/repos/{repo}")
-route = route.Bind(urls.PathParams{"org": "golang", "repo": "go"})
-fmt.Println(route) // "/orgs/golang/repos/go"
-```
-
-Placeholder keys are processed in sorted order for deterministic output. Missing placeholders are left as-is.
 
 ### Route.URL — query string building
 
@@ -50,24 +80,4 @@ repoRoute := urls.TypedRoute[Params]{
 
 fmt.Println(repoRoute.With(Params{Org: "golang", Repo: "go"}))
 // "/orgs/golang/repos/go"
-```
-
-## API
-
-```go
-type URL interface {
-    URL(querystring ...url.Values) string
-}
-
-type Route string
-func (r Route) URL(querystring ...url.Values) string
-func (r Route) Bind(binding PathParams) Route
-
-type PathParams map[string]string
-
-type TypedRoute[T any] struct {
-    Pattern Route
-    Build   func(Route, T) Route
-}
-func (tr TypedRoute[T]) With(params T) Route
 ```
