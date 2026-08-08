@@ -31,20 +31,26 @@ type PostDetailParams struct {
 -- server.go --
 func newMux() *http.ServerMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc(Index.String(), http.HandlerFunc(Index))
-	mux.HandleFunc(Posts.String(), http.HandlerFunc(Posts))
-	mux.HandleFunc(PostDetail.Pattern.String(), http.HandlerFunc(h.PostDetail))
+	mux.HandleFunc(Index.String(), http.HandlerFunc(IndexHandler))
+	mux.HandleFunc(Posts.String(), http.HandlerFunc(PostsHandler))
+	mux.HandleFunc(PostDetail.Pattern.String(), http.HandlerFunc(PostDetailHandler))
 }
 
 -- handlers.go --
-func RedirectToIndex(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, Index.URL(), http.StatusFound)
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, Posts.URL(), http.StatusFound)
 }
 
-func Posts(w http.ResponseWriter, r *http.Request) {
+func PostsHandler(w http.ResponseWriter, r *http.Request) {
 	// look Ma, no string literals in revers URLs
 	typesafePost42URL := PostDetail.With(PostDetailParams{ID: 42}).URL()
 	http.Redirect(w, r, typesafePost42URL, http.StatusFound)
+}
+
+func PostDetailHandler(w http.ResponseWriter, r *http.Request) {
+	postID := r.PathValue("id")
+	post := getPost(postID)
+	render(w, "post.html", post)
 }
 ```
 
